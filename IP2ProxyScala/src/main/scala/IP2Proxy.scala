@@ -34,21 +34,22 @@ object IP2Proxy {
 
   private object Modes extends Enumeration {
     type Mode = Value
-    val COUNTRY_SHORT, COUNTRY_LONG, REGION, CITY, ISP, PROXY_TYPE, IS_PROXY, DOMAIN, USAGE_TYPE, ASN, AS, LAST_SEEN, THREAT, ALL = Value
+    val COUNTRY_SHORT, COUNTRY_LONG, REGION, CITY, ISP, PROXY_TYPE, IS_PROXY, DOMAIN, USAGE_TYPE, ASN, AS, LAST_SEEN, THREAT, PROVIDER, ALL = Value
   }
 
-  private val COUNTRY_POSITION = Array(0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3)
-  private val REGION_POSITION = Array(0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4)
-  private val CITY_POSITION = Array(0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5)
-  private val ISP_POSITION = Array(0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6)
-  private val PROXYTYPE_POSITION = Array(0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2)
-  private val DOMAIN_POSITION = Array(0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7)
-  private val USAGETYPE_POSITION = Array(0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8)
-  private val ASN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9)
-  private val AS_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10)
-  private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11)
-  private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12)
-  private val _ModuleVersion = "3.0.0"
+  private val COUNTRY_POSITION = Array(0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3)
+  private val REGION_POSITION = Array(0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4)
+  private val CITY_POSITION = Array(0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5)
+  private val ISP_POSITION = Array(0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6)
+  private val PROXYTYPE_POSITION = Array(0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+  private val DOMAIN_POSITION = Array(0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7)
+  private val USAGETYPE_POSITION = Array(0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8)
+  private val ASN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9)
+  private val AS_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 10)
+  private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11)
+  private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12)
+  private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13)
+  private val _ModuleVersion = "3.1.0"
 }
 
 class IP2Proxy() {
@@ -73,6 +74,9 @@ class IP2Proxy() {
   private var _DBCountIPv6 = 0
   private var _IndexBaseAddr = 0
   private var _IndexBaseAddrIPv6 = 0
+  private var _ProductCode = 0
+  // private var _ProductType = 0
+  // private var _FileSize = 0
   private var _UseMemoryMappedFile = false
   private var _IPDatabasePath = ""
   private var COUNTRY_POSITION_OFFSET = 0
@@ -86,6 +90,7 @@ class IP2Proxy() {
   private var AS_POSITION_OFFSET = 0
   private var LASTSEEN_POSITION_OFFSET = 0
   private var THREAT_POSITION_OFFSET = 0
+  private var PROVIDER_POSITION_OFFSET = 0
   private var COUNTRY_ENABLED = false
   private var REGION_ENABLED = false
   private var CITY_ENABLED = false
@@ -97,6 +102,7 @@ class IP2Proxy() {
   private var AS_ENABLED = false
   private var LASTSEEN_ENABLED = false
   private var THREAT_ENABLED = false
+  private var PROVIDER_ENABLED = false
 
   /**
    * This function returns the module version.
@@ -251,6 +257,16 @@ class IP2Proxy() {
   def GetThreat(IP: String): String = ProxyQuery(IP, IP2Proxy.Modes.THREAT).Threat
 
   /**
+   * This function returns the provider of the proxy.
+   *
+   * @param IP IP Address you wish to query
+   * @throws IOException If an input or output exception occurred
+   * @return Provider of the proxy
+   */
+  @throws[IOException]
+  def GetProvider(IP: String): String = ProxyQuery(IP, IP2Proxy.Modes.PROVIDER).Provider
+
+  /**
    * This function returns proxy result.
    *
    * @param IP IP Address you wish to query
@@ -278,6 +294,9 @@ class IP2Proxy() {
     _DBCountIPv6 = 0
     _IndexBaseAddr = 0
     _IndexBaseAddrIPv6 = 0
+    _ProductCode = 0
+    // _ProductType = 0
+    // _FileSize = 0
     0
   }
 
@@ -339,6 +358,15 @@ class IP2Proxy() {
       _BaseAddrIPv6 = _HeaderBuffer.getInt(17)
       _IndexBaseAddr = _HeaderBuffer.getInt(21) //4 bytes
       _IndexBaseAddrIPv6 = _HeaderBuffer.getInt(25)
+      _ProductCode = _HeaderBuffer.get(29)
+      // _ProductType = _HeaderBuffer.get(30)
+      // _FileSize = _HeaderBuffer.getInt(31)
+
+      // check if is correct BIN (should be 2 for IP2Proxy BIN file), also checking for zipped file (PK being the first 2 chars)
+      if (((_ProductCode != 2) && (_DBYear >= 21)) || ((_DBType == 80) && (_DBColumn == 75))) { // only BINs from Jan 2021 onwards have this byte set
+        throw new IOException("Incorrect IP2Proxy BIN file format. Please make sure that you are using the latest IP2Proxy BIN file.")
+      }
+
       _IPv4ColumnSize = _DBColumn << 2 // 4 bytes each column
       _IPv6ColumnSize = 16 + ((_DBColumn - 1) << 2) // 4 bytes each column, except IPFrom column which is 16 bytes
 
@@ -364,6 +392,8 @@ class IP2Proxy() {
       else 0
       THREAT_POSITION_OFFSET = if (IP2Proxy.THREAT_POSITION(_DBType) != 0) (IP2Proxy.THREAT_POSITION(_DBType) - 2) << 2
       else 0
+      PROVIDER_POSITION_OFFSET = if (IP2Proxy.PROVIDER_POSITION(_DBType) != 0) (IP2Proxy.PROVIDER_POSITION(_DBType) - 2) << 2
+      else 0
       COUNTRY_ENABLED = (IP2Proxy.COUNTRY_POSITION(_DBType) != 0)
       REGION_ENABLED = (IP2Proxy.REGION_POSITION(_DBType) != 0)
       CITY_ENABLED = (IP2Proxy.CITY_POSITION(_DBType) != 0)
@@ -375,6 +405,7 @@ class IP2Proxy() {
       AS_ENABLED = (IP2Proxy.AS_POSITION(_DBType) != 0)
       LASTSEEN_ENABLED = (IP2Proxy.LASTSEEN_POSITION(_DBType) != 0)
       THREAT_ENABLED = (IP2Proxy.THREAT_POSITION(_DBType) != 0)
+      PROVIDER_ENABLED = (IP2Proxy.PROVIDER_POSITION(_DBType) != 0)
       val _IndexBuffer = InChannel.map(FileChannel.MapMode.READ_ONLY, _IndexBaseAddr - 1, _BaseAddr - _IndexBaseAddr) // reading indexes
       _IndexBuffer.order(ByteOrder.LITTLE_ENDIAN)
       var Pointer = 0
@@ -457,6 +488,7 @@ class IP2Proxy() {
         Result.AS = IP2Proxy.MSG_INVALID_IP
         Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
         Result.Threat = IP2Proxy.MSG_INVALID_IP
+        Result.Provider = IP2Proxy.MSG_INVALID_IP
         return Result
       }
       var IPNo: BigInteger = null
@@ -496,6 +528,7 @@ class IP2Proxy() {
           Result.AS = IP2Proxy.MSG_INVALID_IP
           Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
           Result.Threat = IP2Proxy.MSG_INVALID_IP
+          Result.Provider = IP2Proxy.MSG_INVALID_IP
           return Result
       }
       var Pos: Long = 0
@@ -519,6 +552,7 @@ class IP2Proxy() {
         Result.AS = IP2Proxy.MSG_MISSING_FILE
         Result.Last_Seen = IP2Proxy.MSG_MISSING_FILE
         Result.Threat = IP2Proxy.MSG_MISSING_FILE
+        Result.Provider = IP2Proxy.MSG_MISSING_FILE
         return Result
       }
       if (_UseMemoryMappedFile) {
@@ -559,6 +593,7 @@ class IP2Proxy() {
           Result.AS = IP2Proxy.MSG_IPV6_UNSUPPORTED
           Result.Last_Seen = IP2Proxy.MSG_IPV6_UNSUPPORTED
           Result.Threat = IP2Proxy.MSG_IPV6_UNSUPPORTED
+          Result.Provider = IP2Proxy.MSG_IPV6_UNSUPPORTED
           return Result
         }
         MAX_IP_RANGE = IP2Proxy.MAX_IPV6_RANGE
@@ -601,6 +636,7 @@ class IP2Proxy() {
           var AS = IP2Proxy.MSG_NOT_SUPPORTED
           var Last_Seen = IP2Proxy.MSG_NOT_SUPPORTED
           var Threat = IP2Proxy.MSG_NOT_SUPPORTED
+          var Provider = IP2Proxy.MSG_NOT_SUPPORTED
           var FirstCol = 4 // IP From is 4 bytes
           if (IPType == 6) {
             FirstCol = 16 // IPv6 is 16 bytes
@@ -654,6 +690,9 @@ class IP2Proxy() {
           if (THREAT_ENABLED) if ((Mode eq IP2Proxy.Modes.ALL) || (Mode eq IP2Proxy.Modes.THREAT)) {
             Threat = ReadStr(Read32_Row(Row, THREAT_POSITION_OFFSET).longValue, DataBuf, RF)
           }
+          if (PROVIDER_ENABLED) if ((Mode eq IP2Proxy.Modes.ALL) || (Mode eq IP2Proxy.Modes.PROVIDER)) {
+            Provider = ReadStr(Read32_Row(Row, PROVIDER_POSITION_OFFSET).longValue, DataBuf, RF)
+          }
           if (Country_Short == "-" || Proxy_Type == "-") Is_Proxy = 0
           else if (Proxy_Type == "DCH" || Proxy_Type == "SES") Is_Proxy = 2
           else Is_Proxy = 1
@@ -670,6 +709,7 @@ class IP2Proxy() {
           Result.AS = AS
           Result.Last_Seen = Last_Seen
           Result.Threat = Threat
+          Result.Provider = Provider
           return Result
         }
         else if (IPNo.compareTo(IPFrom) < 0) High = Mid - 1
@@ -688,6 +728,7 @@ class IP2Proxy() {
       Result.AS = IP2Proxy.MSG_INVALID_IP
       Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
       Result.Threat = IP2Proxy.MSG_INVALID_IP
+      Result.Provider = IP2Proxy.MSG_INVALID_IP
       Result
     } finally if (RF != null) RF.close()
   }

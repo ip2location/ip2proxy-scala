@@ -1,6 +1,6 @@
 name := "IP2ProxyScala"
 
-version := "3.0.0"
+version := "3.1.0"
 
 scalaVersion := "2.13.5"
 
