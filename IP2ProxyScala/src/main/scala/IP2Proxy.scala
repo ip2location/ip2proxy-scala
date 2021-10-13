@@ -49,7 +49,7 @@ object IP2Proxy {
   private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11)
   private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12)
   private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13)
-  private val _ModuleVersion = "3.1.0"
+  private val _ModuleVersion = "3.2.0"
 }
 
 class IP2Proxy() {

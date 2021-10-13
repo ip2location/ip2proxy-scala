@@ -5,11 +5,17 @@ This library allows user to query an IP address if it was being used as VPN anon
 * Free IP2Proxy BIN Data: https://lite.ip2location.com
 * Commercial IP2Proxy BIN Data: https://www.ip2location.com/database/ip2proxy
 
+As an alternative, this library can also call the IP2Proxy Web Service. This requires an API key. If you don't have an existing API key, you can subscribe for one at the below:
+
+https://www.ip2location.com/web-service/ip2proxy
+
 ## Requirements ##
 Intellij IDEA: https://www.jetbrains.com/idea/
 
+## QUERY USING THE BIN FILE
+
 ## Methods
-Below are the methods supported in this class.
+Below are the methods supported in this library.
 
 |Method Name|Description|
 |---|---|
@@ -124,3 +130,69 @@ object IP2ProxyTest {
 }
 ```
 
+## QUERY USING THE IP2PROXY PROXY DETECTION WEB SERVICE
+
+## Methods
+Below are the methods supported in this library.
+
+|Method Name|Description|
+|---|---|
+|Open| Expects 3 input parameters:<ol><li>IP2Proxy API Key.</li><li>Package (PX1 - PX11)</li></li><li>Use HTTPS or HTTP</li></ol> |
+|IPQuery|Query IP address. This method returns a JsonObject containing the proxy info. <ul><li>countryCode</li><li>countryName</li><li>regionName</li><li>cityName</li><li>isp</li><li>domain</li><li>usageType</li><li>asn</li><li>as</li><li>lastSeen</li><li>threat</li><li>proxyType</li><li>isProxy</li><li>provider</li><ul>|
+|GetCredit|This method returns the web service credit balance in a JsonObject.|
+
+## Usage
+
+```scala
+object IP2ProxyTest {
+  def main(args: Array[String]): Unit = {
+    try {
+      val ws = new IP2ProxyWebService
+      val strIPAddress = "8.8.8.8"
+      val strAPIKey = "YOUR_API_KEY"
+      val strPackage = "PX11"
+      val boolSSL = true
+      ws.Open(strAPIKey, strPackage, boolSSL)
+      var myResult = ws.IPQuery(strIPAddress)
+      if (myResult.get("response") != null && myResult.get("response").getAsString == "OK") {
+        System.out.println("countryCode: " + (if (myResult.get("countryCode") != null) myResult.get("countryCode").getAsString
+        else ""))
+        System.out.println("countryName: " + (if (myResult.get("countryName") != null) myResult.get("countryName").getAsString
+        else ""))
+        System.out.println("regionName: " + (if (myResult.get("regionName") != null) myResult.get("regionName").getAsString
+        else ""))
+        System.out.println("cityName: " + (if (myResult.get("cityName") != null) myResult.get("cityName").getAsString
+        else ""))
+        System.out.println("isp: " + (if (myResult.get("isp") != null) myResult.get("isp").getAsString
+        else ""))
+        System.out.println("domain: " + (if (myResult.get("domain") != null) myResult.get("domain").getAsString
+        else ""))
+        System.out.println("usageType: " + (if (myResult.get("usageType") != null) myResult.get("usageType").getAsString
+        else ""))
+        System.out.println("asn: " + (if (myResult.get("asn") != null) myResult.get("asn").getAsString
+        else ""))
+        System.out.println("as: " + (if (myResult.get("as") != null) myResult.get("as").getAsString
+        else ""))
+        System.out.println("lastSeen: " + (if (myResult.get("lastSeen") != null) myResult.get("lastSeen").getAsString
+        else ""))
+        System.out.println("proxyType: " + (if (myResult.get("proxyType") != null) myResult.get("proxyType").getAsString
+        else ""))
+        System.out.println("threat: " + (if (myResult.get("threat") != null) myResult.get("threat").getAsString
+        else ""))
+        System.out.println("isProxy: " + (if (myResult.get("isProxy") != null) myResult.get("isProxy").getAsString
+        else ""))
+        System.out.println("provider: " + (if (myResult.get("provider") != null) myResult.get("provider").getAsString
+        else ""))
+      }
+      else if (myResult.get("response") != null) System.out.println("Error: " + myResult.get("response").getAsString)
+      myResult = ws.GetCredit
+      if (myResult.get("response") != null) System.out.println("Credit balance: " + myResult.get("response").getAsString)
+    } catch {
+      case e: Exception =>
+        System.out.println(e)
+        e.printStackTrace(System.out)
+    }
+  }
+}
+
+```

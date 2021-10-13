@@ -12,7 +12,7 @@ class IP2ProxyTest extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAl
   private val ip = "8.8.8.8"
 
 
-  override def beforeAll {
+  override def beforeAll: Unit = {
     val binpath = Paths.get("src", "test", "resources", binfile)
     binfilepath = binpath.toFile.getAbsolutePath
   }
