@@ -1,12 +1,12 @@
 name := "IP2ProxyScala"
 
-version := "3.2.0"
+version := "3.3.0"
 
 scalaVersion := "2.13.5"
 
 idePackagePrefix := Some("com.ip2proxy")
 
-libraryDependencies += "com.google.code.gson" % "gson" % "2.8.6"
+libraryDependencies += "com.google.code.gson" % "gson" % "2.8.9"
 
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.7"
 

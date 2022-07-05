@@ -1,6 +1,7 @@
 package com.ip2proxy
 
 import java.nio.file.Paths
+import java.nio.file.Files
 import java.io.IOException
 import org.scalatest._
 import org.scalatest.funsuite.AnyFunSuite
@@ -9,12 +10,14 @@ class IP2ProxyTest extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAl
   private var proxy: IP2Proxy = _
   private val binfile = "IP2PROXY-LITE-PX1.BIN"
   private var binfilepath: String = _
+  private var binFileBytes: Array[Byte] = _
   private val ip = "8.8.8.8"
 
 
   override def beforeAll: Unit = {
     val binpath = Paths.get("src", "test", "resources", binfile)
     binfilepath = binpath.toFile.getAbsolutePath
+    binFileBytes = Files.readAllBytes(binpath)
   }
 
   before {
@@ -24,6 +27,10 @@ class IP2ProxyTest extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAl
   test("TestOpenException") {
     assertThrows[IOException] {
       proxy.Open("dummy.bin")
+    }
+
+    assertThrows[NullPointerException] {
+      proxy.Open(null.asInstanceOf[Array[Byte]])
     }
   }
 

@@ -49,7 +49,7 @@ object IP2Proxy {
   private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11)
   private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12)
   private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13)
-  private val _ModuleVersion = "3.2.0"
+  private val _ModuleVersion = "3.3.0"
 }
 
 class IP2Proxy() {
@@ -72,6 +72,8 @@ class IP2Proxy() {
   private var _DBYear = 1
   private var _BaseAddrIPv6 = 0
   private var _DBCountIPv6 = 0
+  private var _Indexed = false
+  private var _IndexedIPv6 = false
   private var _IndexBaseAddr = 0
   private var _IndexBaseAddrIPv6 = 0
   private var _ProductCode = 0
@@ -79,6 +81,8 @@ class IP2Proxy() {
   // private var _FileSize = 0
   private var _UseMemoryMappedFile = false
   private var _IPDatabasePath = ""
+
+  private var binFile: FileLike.Supplier = _
   private var COUNTRY_POSITION_OFFSET = 0
   private var REGION_POSITION_OFFSET = 0
   private var CITY_POSITION_OFFSET = 0
@@ -103,6 +107,29 @@ class IP2Proxy() {
   private var LASTSEEN_ENABLED = false
   private var THREAT_ENABLED = false
   private var PROVIDER_ENABLED = false
+
+  object FileLike {
+    trait Supplier {
+      @throws[IOException]
+      def open: FileLike
+
+      def isValid: Boolean
+    }
+  }
+
+  trait FileLike {
+    @throws[IOException]
+    def read(buffer: Array[Byte]): Int
+
+    @throws[IOException]
+    def read(b: Array[Byte], off: Int, len: Int): Int
+
+    @throws[IOException]
+    def seek(pos: Long): Unit
+
+    @throws[IOException]
+    def close(): Unit
+  }
 
   /**
    * This function returns the module version.
@@ -292,6 +319,8 @@ class IP2Proxy() {
     _DBYear = 1
     _BaseAddrIPv6 = 0
     _DBCountIPv6 = 0
+    _Indexed = false
+    _IndexedIPv6 = false
     _IndexBaseAddr = 0
     _IndexBaseAddrIPv6 = 0
     _ProductCode = 0
@@ -341,12 +370,15 @@ class IP2Proxy() {
   @throws[IOException]
   private def LoadBIN: Boolean = {
     var LoadOK = false
-    var RF: RandomAccessFile = null
-    try if (_IPDatabasePath.nonEmpty) {
-      RF = new RandomAccessFile(_IPDatabasePath, "r")
-      val InChannel = RF.getChannel
-      val _HeaderBuffer = InChannel.map(FileChannel.MapMode.READ_ONLY, 0, 64) // 64 bytes header
+    var RF: FileLike = null
+
+    try if (binFile.isValid) {
+      RF = binFile.open
+      val _HeaderData = new Array[Byte](64)
+      RF.read(_HeaderData)
+      val _HeaderBuffer = ByteBuffer.wrap(_HeaderData)
       _HeaderBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
       _DBType = _HeaderBuffer.get(0)
       _DBColumn = _HeaderBuffer.get(1)
       _DBYear = _HeaderBuffer.get(2)
@@ -394,35 +426,59 @@ class IP2Proxy() {
       else 0
       PROVIDER_POSITION_OFFSET = if (IP2Proxy.PROVIDER_POSITION(_DBType) != 0) (IP2Proxy.PROVIDER_POSITION(_DBType) - 2) << 2
       else 0
-      COUNTRY_ENABLED = (IP2Proxy.COUNTRY_POSITION(_DBType) != 0)
-      REGION_ENABLED = (IP2Proxy.REGION_POSITION(_DBType) != 0)
-      CITY_ENABLED = (IP2Proxy.CITY_POSITION(_DBType) != 0)
-      ISP_ENABLED = (IP2Proxy.ISP_POSITION(_DBType) != 0)
-      PROXYTYPE_ENABLED = (IP2Proxy.PROXYTYPE_POSITION(_DBType) != 0)
-      DOMAIN_ENABLED = (IP2Proxy.DOMAIN_POSITION(_DBType) != 0)
-      USAGETYPE_ENABLED = (IP2Proxy.USAGETYPE_POSITION(_DBType) != 0)
-      ASN_ENABLED = (IP2Proxy.ASN_POSITION(_DBType) != 0)
-      AS_ENABLED = (IP2Proxy.AS_POSITION(_DBType) != 0)
-      LASTSEEN_ENABLED = (IP2Proxy.LASTSEEN_POSITION(_DBType) != 0)
-      THREAT_ENABLED = (IP2Proxy.THREAT_POSITION(_DBType) != 0)
-      PROVIDER_ENABLED = (IP2Proxy.PROVIDER_POSITION(_DBType) != 0)
-      val _IndexBuffer = InChannel.map(FileChannel.MapMode.READ_ONLY, _IndexBaseAddr - 1, _BaseAddr - _IndexBaseAddr) // reading indexes
-      _IndexBuffer.order(ByteOrder.LITTLE_ENDIAN)
-      var Pointer = 0
+      COUNTRY_ENABLED = IP2Proxy.COUNTRY_POSITION(_DBType) != 0
+      REGION_ENABLED = IP2Proxy.REGION_POSITION(_DBType) != 0
+      CITY_ENABLED = IP2Proxy.CITY_POSITION(_DBType) != 0
+      ISP_ENABLED = IP2Proxy.ISP_POSITION(_DBType) != 0
+      PROXYTYPE_ENABLED = IP2Proxy.PROXYTYPE_POSITION(_DBType) != 0
+      DOMAIN_ENABLED = IP2Proxy.DOMAIN_POSITION(_DBType) != 0
+      USAGETYPE_ENABLED = IP2Proxy.USAGETYPE_POSITION(_DBType) != 0
+      ASN_ENABLED = IP2Proxy.ASN_POSITION(_DBType) != 0
+      AS_ENABLED = IP2Proxy.AS_POSITION(_DBType) != 0
+      LASTSEEN_ENABLED = IP2Proxy.LASTSEEN_POSITION(_DBType) != 0
+      THREAT_ENABLED = IP2Proxy.THREAT_POSITION(_DBType) != 0
+      PROVIDER_ENABLED = IP2Proxy.PROVIDER_POSITION(_DBType) != 0
 
-      for (x <- _IndexArrayIPv4.indices) { // read IPv4 index
-        _IndexArrayIPv4(x)(0) = _IndexBuffer.getInt(Pointer) // 4 bytes for from row
-        _IndexArrayIPv4(x)(1) = _IndexBuffer.getInt(Pointer + 4) // 4 bytes for to row
-        Pointer += 8
-      }
-      if (_IndexBaseAddrIPv6 > 0) { // read IPv6 index
-        for (x <- _IndexArrayIPv6.indices) {
-          _IndexArrayIPv6(x)(0) = _IndexBuffer.getInt(Pointer)
-          _IndexArrayIPv6(x)(1) = _IndexBuffer.getInt(Pointer + 4)
-          Pointer += 8
+      if (_Indexed) {
+        var readLen = _IndexArrayIPv4.length
+        if (_IndexedIPv6) readLen += _IndexArrayIPv6.length
+
+        val _IndexData = new Array[Byte](readLen * 8) // 4 bytes for both from row and to row
+        RF.seek(_IndexBaseAddr - 1)
+        RF.read(_IndexData)
+        val _IndexBuffer = ByteBuffer.wrap(_IndexData)
+        _IndexBuffer.order(ByteOrder.LITTLE_ENDIAN)
+
+        var pointer = 0
+
+        // read IPv4 index
+        var x = 0
+        while ( {
+          x < _IndexArrayIPv4.length
+        }) {
+          _IndexArrayIPv4(x)(0) = _IndexBuffer.getInt(pointer) // 4 bytes for from row
+
+          _IndexArrayIPv4(x)(1) = _IndexBuffer.getInt(pointer + 4) // 4 bytes for to row
+
+          pointer += 8
+
+          x += 1
+        }
+
+        if (_IndexedIPv6) { // read IPv6 index
+          var x = 0
+          while ( {
+            x < _IndexArrayIPv6.length
+          }) {
+            _IndexArrayIPv6(x)(0) = _IndexBuffer.getInt(pointer)
+            _IndexArrayIPv6(x)(1) = _IndexBuffer.getInt(pointer + 4)
+            pointer += 8
+
+            x += 1
+          }
         }
       }
-      if (_UseMemoryMappedFile) CreateMappedBytes(InChannel)
+      if (_UseMemoryMappedFile) CreateMappedBytes()
       else DestroyMappedBytes()
       LoadOK = true
     }
@@ -452,6 +508,66 @@ class IP2Proxy() {
   def Open(DatabasePath: String, IOMode: IP2Proxy.IOModes.IOMode): Int = if (_DBType == 0) {
     _IPDatabasePath = DatabasePath
     if (IOMode eq IP2Proxy.IOModes.IP2PROXY_MEMORY_MAPPED) _UseMemoryMappedFile = true
+    binFile = new FileLike.Supplier() {
+      @throws[IOException]
+      override def open: FileLike = new FileLike() {
+        final private val aFile = new RandomAccessFile(DatabasePath, "r")
+
+        @throws[IOException]
+        override def read(buffer: Array[Byte]): Int = aFile.read(buffer)
+
+        @throws[IOException]
+        override def read(b: Array[Byte], off: Int, len: Int): Int = aFile.read(b, off, len)
+
+        @throws[IOException]
+        override def seek(pos: Long): Unit = {
+          aFile.seek(pos)
+        }
+
+        @throws[IOException]
+        override def close(): Unit = {
+          aFile.close()
+        }
+      }
+
+      override def isValid: Boolean = DatabasePath.nonEmpty
+    }
+    if (!LoadBIN) -1
+    else 0
+  }
+  else 0
+
+  /**
+   * This function initialize the component a byte array containing the BIN file data.
+   *
+   * @param DB Byte array containing the BIN file data
+   * @throws IOException If an input or output exception occurred
+   * @return -1 if encounter error else 0
+   */
+  @throws[IOException]
+  def Open(DB: Array[Byte]): Int = if (_DBType == 0) {
+    binFile = new FileLike.Supplier() {
+      override def open: FileLike = new FileLike() {
+        final private val stream = new ByteArrayInputStream(DB)
+
+        @throws[IOException]
+        override def read(buffer: Array[Byte]): Int = stream.read(buffer)
+
+        override def read(b: Array[Byte], off: Int, len: Int): Int = stream.read(b, off, len)
+
+        override def seek(pos: Long): Unit = {
+          stream.reset()
+          stream.skip(pos)
+        }
+
+        @throws[IOException]
+        override def close(): Unit = {
+          stream.close()
+        }
+      }
+
+      override def isValid: Boolean = DB.length > 0
+    }
     if (!LoadBIN) -1
     else 0
   }
@@ -470,9 +586,12 @@ class IP2Proxy() {
   @throws[IOException]
   def ProxyQuery(IPAddress: String, Mode: IP2Proxy.Modes.Mode): ProxyResult = {
     val Result = new ProxyResult
-    var RF: RandomAccessFile = null
+    var RF: FileLike = null
     var Buf: ByteBuffer = null
     var DataBuf: ByteBuffer = null
+    var Row: Array[Byte] = null
+    var FullRow: Array[Byte] = null
+
     try {
       if (IPAddress == null || IPAddress.isEmpty) {
         Result.Is_Proxy = -1
@@ -537,6 +656,8 @@ class IP2Proxy() {
       var Mid: Long = 0
       var IPFrom = BigInteger.ZERO
       var IPTo = BigInteger.ZERO
+      var FirstCol: Int = 4 // IP From is 4 bytes
+
       // Read BIN if haven't done so
       if (_DBType == 0) if (!LoadBIN) { // problems reading BIN
         Result.Is_Proxy = -1
@@ -562,7 +683,7 @@ class IP2Proxy() {
       }
       else {
         DestroyMappedBytes()
-        RF = new RandomAccessFile(_IPDatabasePath, "r")
+        RF = binFile.open
       }
       if (IPType == 4) {
         MAX_IP_RANGE = IP2Proxy.MAX_IPV4_RANGE
@@ -574,11 +695,14 @@ class IP2Proxy() {
         }
         else BaseAddr = _BaseAddr
         ColumnSize = _IPv4ColumnSize
-        IndexAddr = IPNo.shiftRight(16).intValue
-        Low = _IndexArrayIPv4(IndexAddr)(0)
-        High = _IndexArrayIPv4(IndexAddr)(1)
+        if (_Indexed) {
+          IndexAddr = IPNo.shiftRight(16).intValue
+          Low = _IndexArrayIPv4(IndexAddr)(0)
+          High = _IndexArrayIPv4(IndexAddr)(1)
+        }
       }
       else {
+        FirstCol = 16 // IPv6 is 16 bytes
         if (_DBCountIPv6 == 0) {
           Result.Is_Proxy = -1
           Result.Proxy_Type = IP2Proxy.MSG_IPV6_UNSUPPORTED
@@ -605,7 +729,7 @@ class IP2Proxy() {
         }
         else BaseAddr = _BaseAddrIPv6
         ColumnSize = _IPv6ColumnSize
-        if (_IndexBaseAddrIPv6 > 0) {
+        if (_IndexedIPv6) {
           IndexAddr = IPNo.shiftRight(112).intValue
           Low = _IndexArrayIPv6(IndexAddr)(0)
           High = _IndexArrayIPv6(IndexAddr)(1)
@@ -615,13 +739,23 @@ class IP2Proxy() {
       while ( {
         Low <= High
       }) {
-        Mid = ((Low + High) / 2)
+        Mid = (Low + High) / 2
         RowOffset = BaseAddr + (Mid * ColumnSize)
         RowOffset2 = RowOffset + ColumnSize
-        if (_UseMemoryMappedFile) OverCapacity = RowOffset2 >= BufCapacity
-        IPFrom = Read32Or128(RowOffset, IPType, Buf, RF)
-        IPTo = if (OverCapacity) BigInteger.ZERO
-        else Read32Or128(RowOffset2, IPType, Buf, RF)
+
+        if (_UseMemoryMappedFile) { // only reading the IP From fields
+          OverCapacity = RowOffset2 >= BufCapacity
+          IPFrom = Read32Or128(RowOffset, IPType, Buf, RF)
+          IPTo = if (OverCapacity) BigInteger.ZERO
+          else Read32Or128(RowOffset2, IPType, Buf, RF)
+        }
+        else { // reading IP From + whole row + next IP From
+          FullRow = ReadRow(RowOffset, ColumnSize + FirstCol, Buf, RF)
+          IPFrom = Read32Or128_row(FullRow, 0, FirstCol)
+          IPTo = if (OverCapacity) BigInteger.ZERO
+          else Read32Or128_row(FullRow, ColumnSize, FirstCol)
+        }
+
         if (IPNo.compareTo(IPFrom) >= 0 && IPNo.compareTo(IPTo) < 0) {
           var Is_Proxy = -1
           var Proxy_Type = IP2Proxy.MSG_NOT_SUPPORTED
@@ -637,18 +771,19 @@ class IP2Proxy() {
           var Last_Seen = IP2Proxy.MSG_NOT_SUPPORTED
           var Threat = IP2Proxy.MSG_NOT_SUPPORTED
           var Provider = IP2Proxy.MSG_NOT_SUPPORTED
-          var FirstCol = 4 // IP From is 4 bytes
-          if (IPType == 6) {
-            FirstCol = 16 // IPv6 is 16 bytes
-          }
-          // read the row here after the IP From column (remaining columns are all 4 bytes)
+
           val RowLen = ColumnSize - FirstCol
-          var Row: Array[Byte] = null
-          Row = ReadRow(RowOffset + FirstCol, RowLen, Buf, RF)
+
           if (_UseMemoryMappedFile) {
+            Row = ReadRow(RowOffset + FirstCol, RowLen, Buf, RF)
             DataBuf = _MapDataBuffer.duplicate // this is to enable reading of a range of bytes in multi-threaded environment
             DataBuf.order(ByteOrder.LITTLE_ENDIAN)
           }
+          else {
+            Row = new Array[Byte](RowLen)
+            System.arraycopy(FullRow, FirstCol, Row, 0, RowLen) // extract the actual row data
+          }
+
           if (PROXYTYPE_ENABLED) if ((Mode eq IP2Proxy.Modes.ALL) || (Mode eq IP2Proxy.Modes.PROXY_TYPE) || (Mode eq IP2Proxy.Modes.IS_PROXY)) {
             Proxy_Type = ReadStr(Read32_Row(Row, PROXYTYPE_POSITION_OFFSET).longValue, DataBuf, RF)
           }
@@ -818,7 +953,7 @@ class IP2Proxy() {
         }
         val TotalSegmentsLeft = 8 - TotalSegments
         if (TotalSegmentsLeft == 6) {
-          for (x <- 1 until TotalSegmentsLeft) {
+          for (_ <- 1 until TotalSegmentsLeft) {
             Bf4.append(PadMe)
             Bf4.append(":")
           }
@@ -828,7 +963,7 @@ class IP2Proxy() {
           IP2 = Bf4.toString
         }
         else {
-          for (x <- 0 until TotalSegmentsLeft) {
+          for (_ <- 0 until TotalSegmentsLeft) {
             Bf4.append(PadMe)
             Bf4.append(":")
           }
@@ -886,7 +1021,7 @@ class IP2Proxy() {
             }
           }
           val TotalSegmentsLeft = 8 - TotalSegments
-          for (x <- 0 until TotalSegmentsLeft) {
+          for (_ <- 0 until TotalSegmentsLeft) {
             Bf4.append(PadMe)
             Bf4.append(":")
           }
@@ -916,7 +1051,7 @@ class IP2Proxy() {
   }
 
   @throws[IOException]
-  private def ReadRow(Position: Long, MyLen: Long, Buf: ByteBuffer, RH: RandomAccessFile): Array[Byte] = {
+  private def ReadRow(Position: Long, MyLen: Long, Buf: ByteBuffer, RH: FileLike): Array[Byte] = {
     val Row = new Array[Byte](MyLen.toInt)
     if (_UseMemoryMappedFile) {
       Buf.position(Position.toInt)
@@ -930,14 +1065,22 @@ class IP2Proxy() {
   }
 
   @throws[IOException]
-  private def Read32Or128(Position: Long, IPType: Int, Buf: ByteBuffer, RH: RandomAccessFile): BigInteger = {
+  private def Read32Or128_row(Row: Array[Byte], From: Int, Len: Int) = {
+    val Buf = new Array[Byte](Len)
+    System.arraycopy(Row, From, Buf, 0, Len)
+    Reverse(Buf)
+    new BigInteger(1, Buf)
+  }
+
+  @throws[IOException]
+  private def Read32Or128(Position: Long, IPType: Int, Buf: ByteBuffer, RH: FileLike): BigInteger = {
     if (IPType == 4) return Read32(Position, Buf, RH)
     else if (IPType == 6) return Read128(Position, Buf, RH)
     BigInteger.ZERO
   }
 
   @throws[IOException]
-  private def Read128(Position: Long, Buf: ByteBuffer, RH: RandomAccessFile): BigInteger = {
+  private def Read128(Position: Long, Buf: ByteBuffer, RH: FileLike): BigInteger = {
     var RetVal = BigInteger.ZERO
     val BSize = 16
     val Bytes = new Array[Byte](BSize)
@@ -958,13 +1101,13 @@ class IP2Proxy() {
   private def Read32_Row(Row: Array[Byte], From: Int): BigInteger = {
     val Len = 4
     val Bytes = new Array[Byte](Len)
-    System.arraycopy(Row, From, Bytes, 0.toInt, Len)
+    System.arraycopy(Row, From, Bytes, 0, Len)
     Reverse(Bytes)
     new BigInteger(1, Bytes)
   }
 
   @throws[IOException]
-  private def Read32(Position: Long, Buf: ByteBuffer, RH: RandomAccessFile): BigInteger = if (_UseMemoryMappedFile) {
+  private def Read32(Position: Long, Buf: ByteBuffer, RH: FileLike): BigInteger = if (_UseMemoryMappedFile) {
     // simulate unsigned int by using long
     BigInteger.valueOf(Buf.getInt(Position.toInt) & 0xffffffffL) // use absolute offset to be thread-safe
   }
@@ -978,34 +1121,40 @@ class IP2Proxy() {
   }
 
   @throws[IOException]
-  private def ReadStr(Position: Long, Buf: ByteBuffer, RH: RandomAccessFile): String = {
-    var Size = 0
-    var Bytes: Array[Byte] = null
-    var Pos: Long = Position
+  private def ReadStr(Position: Long, DataBuf: ByteBuffer, RF: FileLike): String = {
+    var Size = 256 // max size of string field + 1 byte for the length
+    var Len = 0
+    val Data = new Array[Byte](Size)
+    var Buf: Array[Byte] = null
+
     if (_UseMemoryMappedFile) {
-      Pos = Pos - _MapDataOffset // position stored in BIN file is for full file, not just the mapped data segment, so need to minus
-      Size = _MapDataBuffer.get(Pos.toInt)
+      val Pos = Position - _MapDataOffset // position stored in BIN file is for full file, not just the mapped data segment, so need to minus
+
       try {
-        Bytes = new Array[Byte](Size)
-        Buf.position(Pos.toInt + 1)
-        Buf.get(Bytes, 0, Size)
+        DataBuf.position(Pos.asInstanceOf[Int])
+        if (DataBuf.remaining < Size) Size = DataBuf.remaining
+        DataBuf.get(Data, 0, Size)
+        Len = Data(0)
+        Buf = new Array[Byte](Len)
+        System.arraycopy(Data, 1, Buf, 0, Len)
       } catch {
-        case e: NegativeArraySizeException =>
+        case _: NegativeArraySizeException =>
           return null
       }
     }
     else {
-      RH.seek(Pos)
-      Size = RH.read
+      RF.seek(Position)
       try {
-        Bytes = new Array[Byte](Size)
-        RH.read(Bytes, 0, Size)
+        RF.read(Data, 0, Size)
+        Len = Data(0)
+        Buf = new Array[Byte](Len)
+        System.arraycopy(Data, 1, Buf, 0, Len)
       } catch {
-        case e: NegativeArraySizeException =>
+        case _: NegativeArraySizeException =>
           return null
       }
     }
-    val S = new String(Bytes)
+    val S = new String(Buf)
     S
   }
 
