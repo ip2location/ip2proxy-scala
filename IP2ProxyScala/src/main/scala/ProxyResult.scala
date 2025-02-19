@@ -15,4 +15,5 @@ class ProxyResult private[ip2proxy]() {
   var Last_Seen: String = _
   var Threat: String = _
   var Provider: String = _
+  var Fraud_Score: String = _
 }

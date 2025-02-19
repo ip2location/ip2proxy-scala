@@ -132,6 +132,13 @@ class IP2ProxyTest extends AnyFunSuite with BeforeAndAfter with BeforeAndAfterAl
     }
   }
 
+  test("TestQueryFraudScore") {
+    if (proxy.Open(binfilepath) == 0) {
+      val rec = proxy.GetAll(ip)
+      assert(rec.Fraud_Score == "NOT SUPPORTED")
+    }
+  }
+
   after {
     proxy.Close
   }

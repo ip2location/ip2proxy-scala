@@ -34,22 +34,23 @@ object IP2Proxy {
 
   private object Modes extends Enumeration {
     type Mode = Value
-    val COUNTRY_SHORT, COUNTRY_LONG, REGION, CITY, ISP, PROXY_TYPE, IS_PROXY, DOMAIN, USAGE_TYPE, ASN, AS, LAST_SEEN, THREAT, PROVIDER, ALL = Value
+    val COUNTRY_SHORT, COUNTRY_LONG, REGION, CITY, ISP, PROXY_TYPE, IS_PROXY, DOMAIN, USAGE_TYPE, ASN, AS, LAST_SEEN, THREAT, PROVIDER, FRAUD_SCORE, ALL = Value
   }
 
-  private val COUNTRY_POSITION = Array(0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3)
-  private val REGION_POSITION = Array(0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4)
-  private val CITY_POSITION = Array(0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5)
-  private val ISP_POSITION = Array(0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6)
-  private val PROXYTYPE_POSITION = Array(0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
-  private val DOMAIN_POSITION = Array(0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7)
-  private val USAGETYPE_POSITION = Array(0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8)
-  private val ASN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9)
-  private val AS_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 10)
-  private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11)
-  private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12)
-  private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13)
-  private val _ModuleVersion = "3.3.0"
+  private val COUNTRY_POSITION = Array(0, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3)
+  private val REGION_POSITION = Array(0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4)
+  private val CITY_POSITION = Array(0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5)
+  private val ISP_POSITION = Array(0, 0, 0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6)
+  private val PROXYTYPE_POSITION = Array(0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)
+  private val DOMAIN_POSITION = Array(0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 7, 7, 7)
+  private val USAGETYPE_POSITION = Array(0, 0, 0, 0, 0, 0, 8, 8, 8, 8, 8, 8, 8)
+  private val ASN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 9, 9, 9, 9, 9, 9)
+  private val AS_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 10, 10, 10, 10, 10, 10)
+  private val LASTSEEN_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 11, 11, 11, 11, 11)
+  private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12)
+  private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13)
+  private val FRAUDSCORE_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14)
+  private val _ModuleVersion = "3.4.0"
 }
 
 class IP2Proxy() {
@@ -95,6 +96,7 @@ class IP2Proxy() {
   private var LASTSEEN_POSITION_OFFSET = 0
   private var THREAT_POSITION_OFFSET = 0
   private var PROVIDER_POSITION_OFFSET = 0
+  private var FRAUDSCORE_POSITION_OFFSET = 0
   private var COUNTRY_ENABLED = false
   private var REGION_ENABLED = false
   private var CITY_ENABLED = false
@@ -107,6 +109,7 @@ class IP2Proxy() {
   private var LASTSEEN_ENABLED = false
   private var THREAT_ENABLED = false
   private var PROVIDER_ENABLED = false
+  private var FRAUDSCORE_ENABLED = false
 
   object FileLike {
     trait Supplier {
@@ -294,6 +297,16 @@ class IP2Proxy() {
   def GetProvider(IP: String): String = ProxyQuery(IP, IP2Proxy.Modes.PROVIDER).Provider
 
   /**
+   * This function returns the fraud score of the IP.
+   *
+   * @param IP IP Address you wish to query
+   * @throws IOException If an input or output exception occurred
+   * @return Fraud score of the IP
+   */
+  @throws[IOException]
+  def GetFraudScore(IP: String): String = ProxyQuery(IP, IP2Proxy.Modes.FRAUD_SCORE).Fraud_Score
+
+  /**
    * This function returns proxy result.
    *
    * @param IP IP Address you wish to query
@@ -426,6 +439,8 @@ class IP2Proxy() {
       else 0
       PROVIDER_POSITION_OFFSET = if (IP2Proxy.PROVIDER_POSITION(_DBType) != 0) (IP2Proxy.PROVIDER_POSITION(_DBType) - 2) << 2
       else 0
+      FRAUDSCORE_POSITION_OFFSET = if (IP2Proxy.FRAUDSCORE_POSITION(_DBType) != 0) (IP2Proxy.FRAUDSCORE_POSITION(_DBType) - 2) << 2
+      else 0
       COUNTRY_ENABLED = IP2Proxy.COUNTRY_POSITION(_DBType) != 0
       REGION_ENABLED = IP2Proxy.REGION_POSITION(_DBType) != 0
       CITY_ENABLED = IP2Proxy.CITY_POSITION(_DBType) != 0
@@ -438,6 +453,7 @@ class IP2Proxy() {
       LASTSEEN_ENABLED = IP2Proxy.LASTSEEN_POSITION(_DBType) != 0
       THREAT_ENABLED = IP2Proxy.THREAT_POSITION(_DBType) != 0
       PROVIDER_ENABLED = IP2Proxy.PROVIDER_POSITION(_DBType) != 0
+      FRAUDSCORE_ENABLED = IP2Proxy.FRAUDSCORE_POSITION(_DBType) != 0
 
       if (_Indexed) {
         var readLen = _IndexArrayIPv4.length
@@ -608,6 +624,7 @@ class IP2Proxy() {
         Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
         Result.Threat = IP2Proxy.MSG_INVALID_IP
         Result.Provider = IP2Proxy.MSG_INVALID_IP
+        Result.Fraud_Score = IP2Proxy.MSG_INVALID_IP
         return Result
       }
       var IPNo: BigInteger = null
@@ -648,6 +665,7 @@ class IP2Proxy() {
           Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
           Result.Threat = IP2Proxy.MSG_INVALID_IP
           Result.Provider = IP2Proxy.MSG_INVALID_IP
+          Result.Fraud_Score = IP2Proxy.MSG_INVALID_IP
           return Result
       }
       var Pos: Long = 0
@@ -674,6 +692,7 @@ class IP2Proxy() {
         Result.Last_Seen = IP2Proxy.MSG_MISSING_FILE
         Result.Threat = IP2Proxy.MSG_MISSING_FILE
         Result.Provider = IP2Proxy.MSG_MISSING_FILE
+        Result.Fraud_Score = IP2Proxy.MSG_MISSING_FILE
         return Result
       }
       if (_UseMemoryMappedFile) {
@@ -718,6 +737,7 @@ class IP2Proxy() {
           Result.Last_Seen = IP2Proxy.MSG_IPV6_UNSUPPORTED
           Result.Threat = IP2Proxy.MSG_IPV6_UNSUPPORTED
           Result.Provider = IP2Proxy.MSG_IPV6_UNSUPPORTED
+          Result.Fraud_Score = IP2Proxy.MSG_IPV6_UNSUPPORTED
           return Result
         }
         MAX_IP_RANGE = IP2Proxy.MAX_IPV6_RANGE
@@ -771,6 +791,7 @@ class IP2Proxy() {
           var Last_Seen = IP2Proxy.MSG_NOT_SUPPORTED
           var Threat = IP2Proxy.MSG_NOT_SUPPORTED
           var Provider = IP2Proxy.MSG_NOT_SUPPORTED
+          var Fraud_Score = IP2Proxy.MSG_NOT_SUPPORTED
 
           val RowLen = ColumnSize - FirstCol
 
@@ -828,6 +849,9 @@ class IP2Proxy() {
           if (PROVIDER_ENABLED) if ((Mode eq IP2Proxy.Modes.ALL) || (Mode eq IP2Proxy.Modes.PROVIDER)) {
             Provider = ReadStr(Read32_Row(Row, PROVIDER_POSITION_OFFSET).longValue, DataBuf, RF)
           }
+          if (FRAUDSCORE_ENABLED) if ((Mode eq IP2Proxy.Modes.ALL) || (Mode eq IP2Proxy.Modes.FRAUD_SCORE)) {
+            Fraud_Score = ReadStr(Read32_Row(Row, FRAUDSCORE_POSITION_OFFSET).longValue, DataBuf, RF)
+          }
           if (Country_Short == "-" || Proxy_Type == "-") Is_Proxy = 0
           else if (Proxy_Type == "DCH" || Proxy_Type == "SES") Is_Proxy = 2
           else Is_Proxy = 1
@@ -845,6 +869,7 @@ class IP2Proxy() {
           Result.Last_Seen = Last_Seen
           Result.Threat = Threat
           Result.Provider = Provider
+          Result.Fraud_Score = Fraud_Score
           return Result
         }
         else if (IPNo.compareTo(IPFrom) < 0) High = Mid - 1
@@ -864,6 +889,7 @@ class IP2Proxy() {
       Result.Last_Seen = IP2Proxy.MSG_INVALID_IP
       Result.Threat = IP2Proxy.MSG_INVALID_IP
       Result.Provider = IP2Proxy.MSG_INVALID_IP
+      Result.Fraud_Score = IP2Proxy.MSG_INVALID_IP
       Result
     } finally if (RF != null) RF.close()
   }
