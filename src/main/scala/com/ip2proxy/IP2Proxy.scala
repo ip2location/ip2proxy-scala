@@ -50,7 +50,7 @@ object IP2Proxy {
   private val THREAT_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 12, 12, 12)
   private val PROVIDER_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 13)
   private val FRAUDSCORE_POSITION = Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14)
-  private val _ModuleVersion = "3.5.0"
+  private val _ModuleVersion = "3.6.0"
 }
 
 class IP2Proxy() {
@@ -161,7 +161,7 @@ class IP2Proxy() {
    *
    * @param IP IP Address you wish to query
    * @throws IOException If an input or output exception occurred
-   * @return -1 if error, 0 if not a proxy, 1 if proxy except DCH and SES, 2 if proxy and either DCH or SES
+   * @return -1 if error, 0 if not a proxy, 1 if proxy except DCH and SES and AIC, 2 if proxy and either DCH or SES or AIC
    */
   @throws[IOException]
   def IsProxy(IP: String): Int = ProxyQuery(IP, IP2Proxy.Modes.IS_PROXY).Is_Proxy
@@ -853,7 +853,7 @@ class IP2Proxy() {
             Fraud_Score = ReadStr(Read32_Row(Row, FRAUDSCORE_POSITION_OFFSET).longValue, DataBuf, RF)
           }
           if (Country_Short == "-" || Proxy_Type == "-") Is_Proxy = 0
-          else if (Proxy_Type == "DCH" || Proxy_Type == "SES") Is_Proxy = 2
+          else if (Proxy_Type == "DCH" || Proxy_Type == "SES" || Proxy_Type == "AIC") Is_Proxy = 2
           else Is_Proxy = 1
           Result.Is_Proxy = Is_Proxy
           Result.Proxy_Type = Proxy_Type

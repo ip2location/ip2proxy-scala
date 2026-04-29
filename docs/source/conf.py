@@ -7,8 +7,8 @@ project = 'IP2Proxy Scala'
 copyright = '2026, IP2Location'
 author = 'IP2Location'
 
-release = '3.5.0'
-version = '3.5.0'
+release = '3.6.0'
+version = '3.6.0'
 
 # -- General configuration
 

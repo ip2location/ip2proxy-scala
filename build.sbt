@@ -9,7 +9,7 @@ lazy val root = project
 
     organization := "com.ip2proxy",
     name := "ip2proxy-scala",
-    version := "3.5.0",
+    version := "3.6.0",
 
     scalaVersion := scala3Version,
 
